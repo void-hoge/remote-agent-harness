@@ -328,7 +328,7 @@ def render_control_instructions(configurations: dict[Path, Config]) -> str:
             "",
             "- Use `remote-status` to inspect mount state.",
             "- Use `remote-mount <local-dir>` before working in a configured mount.",
-            "- Run coding agents from the mounted local directory, not this control directory.",
+            "- To run a command on a remote environment, use `remote <command>` in the mounted local directory or its subdirectories.",
             "- Use `remote-unmount <local-dir>` only after leaving the mounted directory.",
         )
     )
