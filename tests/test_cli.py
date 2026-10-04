@@ -151,6 +151,30 @@ class CliTests(unittest.TestCase):
             self.assertIn("# Remote Agent Harness Control Directory", output.getvalue())
             self.assertIn("`/mnt/project` maps to `host:/srv/project`", output.getvalue())
 
+    def test_mount_main_attempts_all_configurations_after_failure(self) -> None:
+        first = cli.Config("host-a", Path("/mnt/a"), PurePosixPath("/srv/a"))
+        second = cli.Config("host-b", Path("/mnt/b"), PurePosixPath("/srv/b"))
+        with patch.object(cli, "config_path", return_value=Path("/config.toml")), patch.object(
+            Path, "is_file", return_value=True
+        ), patch.object(cli, "parse_configurations", return_value={first.local_dir: first, second.local_dir: second}), patch.object(
+            cli, "mount", side_effect=[ValueError("unavailable"), None]
+        ) as mount, patch.object(cli.sys, "argv", ["remote-mount"]):
+            self.assertEqual(cli.mount_main(), 1)
+        self.assertEqual(mount.call_args_list[0].args, (first,))
+        self.assertEqual(mount.call_args_list[1].args, (second,))
+
+    def test_unmount_main_handles_all_configurations(self) -> None:
+        first = cli.Config("host-a", Path("/mnt/a"), PurePosixPath("/srv/a"))
+        second = cli.Config("host-b", Path("/mnt/b"), PurePosixPath("/srv/b"))
+        with patch.object(cli, "config_path", return_value=Path("/config.toml")), patch.object(
+            Path, "is_file", return_value=True
+        ), patch.object(cli, "parse_configurations", return_value={first.local_dir: first, second.local_dir: second}), patch.object(
+            cli, "unmount"
+        ) as unmount, patch.object(cli.sys, "argv", ["remote-unmount"]):
+            self.assertEqual(cli.unmount_main(), 0)
+        self.assertEqual(unmount.call_args_list[0].args, (first,))
+        self.assertEqual(unmount.call_args_list[1].args, (second,))
+
     def test_unmount_rejects_unrelated_mount(self) -> None:
         config = cli.Config("rpvai", Path("/mnt/project"), PurePosixPath("/home/mugi/project"))
         unrelated = cli.Mount(Path("/mnt/project"), "ext4", "/dev/sda1")

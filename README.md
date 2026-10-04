@@ -41,7 +41,7 @@ Start a session from the same control directory. Pass the configured local
 mount directory to select the target configuration:
 
 ```sh
-remote-mount <local-dir>
+remote-mount [<local-dir>]
 ```
 
 Work under the local mount point. Prefix commands that must run remotely with
@@ -71,11 +71,14 @@ the password.
 Finish a session from the control directory:
 
 ```sh
-remote-unmount <local-dir>
+remote-unmount [<local-dir>]
 ```
 
 Do not run `remote-unmount` while the shell is inside the mounted directory;
 leave the mount first.
+
+Omit `<local-dir>` to mount or unmount every configuration in the control
+directory. Each configured mount is attempted even if another one fails.
 
 Unmounting stops the SSHFS connection and its keepalive traffic. While mounted,
 the connection uses SSHFS reconnect and keepalive options; a connection loss
