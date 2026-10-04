@@ -1,0 +1,4 @@
+.harness/
+.venv/
+__pycache__/
+*.py[cod]
