@@ -24,13 +24,16 @@ From a control directory, create a configuration for an existing empty local
 mount directory and an existing remote directory:
 
 ```sh
-remote-agent-harness rpvai /home/hoge/mount/project:project
+remote-agent-harness <host> <local-dir>:<remote-dir>
 ```
+
+For example, `remote-agent-harness build-host /work/project:project` mounts the
+remote `~/project` directory at `/work/project` when requested below.
 
 This creates `./.harness/config.toml` in the current directory. The final path
 is relative to the remote user's home directory; absolute remote paths are also
 accepted. It validates the SSH connection and both directory prerequisites, but
-does not mount the filesystem or create files on `rpvai`.
+does not mount the filesystem or create files on the remote host.
 
 ## Work session
 
@@ -38,19 +41,15 @@ Start a session from the same control directory. Pass the configured local
 mount directory to select the target configuration:
 
 ```sh
-remote-mount /home/hoge/mount/project
+remote-mount <local-dir>
 ```
 
 Work under the local mount point. Prefix commands that must run remotely with
 `remote`:
 
 ```sh
-cd /home/hoge/mount/project
-whoami
-# hoge
-
+cd <local-dir>
 remote whoami
-# mugi
 ```
 
 `remote` finds the SSHFS mount containing the current directory and runs the
@@ -72,7 +71,7 @@ the password.
 Finish a session from the control directory:
 
 ```sh
-remote-unmount /home/hoge/mount/project
+remote-unmount <local-dir>
 ```
 
 Do not run `remote-unmount` while the shell is inside the mounted directory;
@@ -91,8 +90,8 @@ One control directory can contain multiple mount configurations. Add each one
 with a distinct local mount directory:
 
 ```sh
-remote-agent-harness rpvai /home/hoge/mount/dev:dev
-remote-agent-harness tstof /home/hoge/mount/staging:staging
+remote-agent-harness host-a /work/project-a:project-a
+remote-agent-harness host-b /work/project-b:project-b
 ```
 
 Select a mount by its local directory. Both may be mounted at the same time,
