@@ -327,9 +327,9 @@ def render_control_instructions(configurations: dict[Path, Config]) -> str:
             "## Workflow",
             "",
             "- Use `remote-status` to inspect mount state.",
-            "- Use `remote-mount <local-dir>` before working in a configured mount.",
+            "- Use `remote-mount [<local-dir>]` before working in a configured mount; omit the path to mount all configurations.",
             "- To run a command on a remote environment, use `remote <command>` in the mounted local directory or its subdirectories.",
-            "- Use `remote-unmount <local-dir>` only after leaving the mounted directory.",
+            "- Use `remote-unmount [<local-dir>]` only after leaving mounted directories; omit the path to unmount all configurations.",
         )
     )
     return "\n".join(lines) + "\n"
@@ -386,10 +386,26 @@ def setup_main() -> int:
     return 0
 
 
+def operate_all(operation) -> int:
+    path = config_path()
+    if not path.is_file():
+        raise ValueError(f"configuration not found: {path}")
+    failed = False
+    for _, config in sorted(parse_configurations(path).items(), key=lambda item: str(item[0])):
+        try:
+            operation(config)
+        except (OSError, subprocess.SubprocessError, ValueError) as exc:
+            print(f"error: {config.local_dir}: {exc}", file=sys.stderr)
+            failed = True
+    return int(failed)
+
+
 def mount_main() -> int:
-    if len(sys.argv) != 2:
-        return error("usage: remote-mount <local-dir>")
+    if len(sys.argv) > 2:
+        return error("usage: remote-mount [local-dir]")
     try:
+        if len(sys.argv) == 1:
+            return operate_all(mount)
         local_dir = Path(sys.argv[1]).expanduser().absolute()
         mount(load_config(local_dir))
     except (OSError, subprocess.SubprocessError, ValueError) as exc:
@@ -398,9 +414,11 @@ def mount_main() -> int:
 
 
 def unmount_main() -> int:
-    if len(sys.argv) != 2:
-        return error("usage: remote-unmount <local-dir>")
+    if len(sys.argv) > 2:
+        return error("usage: remote-unmount [local-dir]")
     try:
+        if len(sys.argv) == 1:
+            return operate_all(unmount)
         local_dir = Path(sys.argv[1]).expanduser().absolute()
         unmount(load_config(local_dir))
     except (OSError, subprocess.SubprocessError, ValueError) as exc:
