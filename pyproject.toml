@@ -1,0 +1,21 @@
+[project]
+name = "remote-agent-harness"
+version = "0.1.0"
+description = "Run coding-agent commands on an SSH host through an sshfs mount"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+remote-agent-harness = "remote_agent_harness.cli:setup_main"
+remote-mount = "remote_agent_harness.cli:mount_main"
+remote-unmount = "remote_agent_harness.cli:unmount_main"
+remote-status = "remote_agent_harness.cli:status_main"
+remote = "remote_agent_harness.cli:remote_main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = true
