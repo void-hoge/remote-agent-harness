@@ -103,3 +103,23 @@ Show all configured mounts and their status from the control directory:
 ```sh
 remote-status
 ```
+
+## Agent instructions
+
+Generate instructions for an agent working in the control directory:
+
+```sh
+remote-agent-instructions >> AGENTS.md
+```
+
+Generate instructions for one mounted work directory. Run this from the
+control directory and redirect to the intended work tree, or run it from the
+work tree and redirect to its local `AGENTS.md`:
+
+```sh
+remote-agent-instructions <local-dir> > <local-dir>/AGENTS.md
+```
+
+The command only writes Markdown to standard output. The shell redirection
+controls whether and where an `AGENTS.md` file is created. An `AGENTS.md` under
+an SSHFS mount is also created in the remote work tree.

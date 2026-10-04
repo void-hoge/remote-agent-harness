@@ -282,6 +282,81 @@ def remote_target(cwd: Path) -> tuple[str, PurePosixPath]:
     return host, remote_dir
 
 
+def mounted_config(local_dir: Path) -> Config:
+    for mount in list_mounts():
+        if mount.mountpoint != local_dir or mount.filesystem != "fuse.sshfs":
+            continue
+        parsed = parse_harness_source(mount.source)
+        if parsed is not None:
+            host, remote_dir = parsed
+            return Config(host, local_dir, remote_dir)
+    raise ValueError(f"local directory is not configured or mounted: {local_dir}")
+
+
+def instruction_config(local_dir: Path) -> Config:
+    path = config_path()
+    if path.is_file():
+        configurations = parse_configurations(path)
+        if local_dir in configurations:
+            return configurations[local_dir]
+    return mounted_config(local_dir)
+
+
+def render_control_instructions(configurations: dict[Path, Config]) -> str:
+    lines = [
+        "# Remote Agent Harness Control Directory",
+        "",
+        "This directory contains the local `.harness/config.toml` configuration.",
+        "Do not edit that file directly. Add or update a mount with:",
+        "",
+        "```sh",
+        "remote-agent-harness <host> <local-dir>:<remote-dir>",
+        "```",
+        "",
+        "## Configured Mounts",
+        "",
+    ]
+    if configurations:
+        for local_dir, config in sorted(configurations.items(), key=lambda item: str(item[0])):
+            lines.append(f"- `{local_dir}` maps to `{config.host}:{config.remote_dir}`")
+    else:
+        lines.append("- No mounts are configured.")
+    lines.extend(
+        (
+            "",
+            "## Workflow",
+            "",
+            "- Use `remote-status` to inspect mount state.",
+            "- Use `remote-mount <local-dir>` before working in a configured mount.",
+            "- Run coding agents from the mounted local directory, not this control directory.",
+            "- Use `remote-unmount <local-dir>` only after leaving the mounted directory.",
+        )
+    )
+    return "\n".join(lines) + "\n"
+
+
+def render_working_instructions(config: Config) -> str:
+    return "\n".join(
+        (
+            "# Remote Agent Harness Working Directory",
+            "",
+            f"This directory is an SSHFS mount of `{config.host}:{config.remote_dir}`.",
+            "Edit files normally, but run commands that operate on the project on the remote host.",
+            "",
+            "## Remote Commands",
+            "",
+            "- Prefix commands with `remote`, for example `remote pytest` or `remote git status`.",
+            "- Pass SSH options before `--`, for example `remote -X -- xclock`.",
+            "- Use `remote -tt -- <command>` when the command requires an interactive terminal.",
+            "- `remote` works only from this mounted directory or one of its subdirectories.",
+            "",
+            "## Mount Lifecycle",
+            "",
+            "Mount and unmount this directory from its control directory with `remote-mount` and `remote-unmount`.",
+        )
+    ) + "\n"
+
+
 def run_remote(command: list[str], cwd: Path | None = None, *, ssh_options: list[str] | None = None) -> None:
     if not command:
         raise ValueError("usage: remote [ssh-options...] -- <command> [args...]")
@@ -372,6 +447,23 @@ def status_main() -> int:
             else:
                 state = "occupied"
             print(f"{state:<10} {local_dir}  {config.host}:{config.remote_dir}")
+    except (OSError, ValueError) as exc:
+        return error(str(exc))
+    return 0
+
+
+def instructions_main() -> int:
+    if len(sys.argv) > 2:
+        return error("usage: remote-agent-instructions [local-dir]")
+    try:
+        if len(sys.argv) == 1:
+            path = config_path()
+            if not path.is_file():
+                raise ValueError(f"configuration not found: {path}")
+            print(render_control_instructions(parse_configurations(path)), end="")
+        else:
+            local_dir = Path(sys.argv[1]).expanduser().absolute()
+            print(render_working_instructions(instruction_config(local_dir)), end="")
     except (OSError, ValueError) as exc:
         return error(str(exc))
     return 0

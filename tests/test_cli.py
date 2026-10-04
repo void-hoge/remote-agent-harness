@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import redirect_stdout
+import io
 from pathlib import Path, PurePosixPath
 import subprocess
 import tempfile
@@ -120,6 +122,34 @@ class CliTests(unittest.TestCase):
             self.assertEqual(cli.remote_main(), 0)
         self.assertEqual(run_remote.call_args.args[0], ["whoami"])
         self.assertEqual(run_remote.call_args.kwargs, {"ssh_options": ["-X", "-o", "ConnectTimeout=5"]})
+
+    def test_instruction_config_falls_back_to_mounted_directory(self) -> None:
+        mount = cli.Mount(Path("/mnt/project"), "fuse.sshfs", "remote-agent-harness@host:/srv/project")
+        with patch.object(cli, "config_path", return_value=Path("/missing/config.toml")), patch.object(
+            cli, "list_mounts", return_value=[mount]
+        ):
+            config = cli.instruction_config(Path("/mnt/project"))
+        self.assertEqual(config, cli.Config("host", Path("/mnt/project"), PurePosixPath("/srv/project")))
+
+    def test_render_working_instructions_contains_mount_details(self) -> None:
+        content = cli.render_working_instructions(
+            cli.Config("host", Path("/mnt/project"), PurePosixPath("/srv/project"))
+        )
+        self.assertIn("`host:/srv/project`", content)
+        self.assertIn("`remote -tt -- <command>`", content)
+
+    def test_instructions_main_generates_control_instructions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            cwd = Path(directory)
+            config_file = cli.config_path(cwd)
+            cli.write_config(cli.Config("host", Path("/mnt/project"), PurePosixPath("/srv/project")), cwd)
+            output = io.StringIO()
+            with patch.object(cli, "config_path", return_value=config_file), patch.object(
+                cli.sys, "argv", ["remote-agent-instructions"]
+            ), redirect_stdout(output):
+                self.assertEqual(cli.instructions_main(), 0)
+            self.assertIn("# Remote Agent Harness Control Directory", output.getvalue())
+            self.assertIn("`/mnt/project` maps to `host:/srv/project`", output.getvalue())
 
     def test_unmount_rejects_unrelated_mount(self) -> None:
         config = cli.Config("rpvai", Path("/mnt/project"), PurePosixPath("/home/mugi/project"))

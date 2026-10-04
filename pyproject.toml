@@ -11,6 +11,7 @@ remote-agent-harness = "remote_agent_harness.cli:setup_main"
 remote-mount = "remote_agent_harness.cli:mount_main"
 remote-unmount = "remote_agent_harness.cli:unmount_main"
 remote-status = "remote_agent_harness.cli:status_main"
+remote-agent-instructions = "remote_agent_harness.cli:instructions_main"
 remote = "remote_agent_harness.cli:remote_main"
 
 [build-system]
